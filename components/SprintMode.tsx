@@ -3,13 +3,14 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Task, SprintSettings } from '../types';
 import { SkipForward, CheckCircle2, RotateCcw, Coffee, EyeOff, X, Shield, ShieldAlert, PlayCircle, PiggyBank, Plus, Minus, Timer, Zap } from 'lucide-react';
 import { ProductivityEngine } from '../utils';
+import { useTranslation } from '../hooks/useTranslation';
 
 interface SprintModeProps {
   tasks: Task[];
   settings: SprintSettings;
   onUpdateTask: (taskId: string, accumulatedTime: number, isCompleted: boolean, distractionTime: number, earnedMinutes: number) => void;
+  onProgressUpdate: (taskId: string, progress: number) => void;
   onSprintComplete: () => void;
-  onExit: () => void;
   onUpdateSettings: (settings: SprintSettings) => void;
 }
 
@@ -28,11 +29,14 @@ const formatTime = (ms: number) => {
   return `${hours > 0 ? `${hours}:` : ''}${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 };
 
-const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, onSprintComplete, onExit, onUpdateSettings }) => {
+const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, onProgressUpdate, onSprintComplete, onUpdateSettings }) => {
   const [activeTaskId, setActiveTaskId] = useState<string | null>(() => {
     const firstIncomplete = tasks.find(t => !t.isCompleted);
     return firstIncomplete ? firstIncomplete.id : null;
   });
+
+  const [draggingTaskId, setDraggingTaskId] = useState<string | null>(null);
+  const [dragProgress, setDragProgress] = useState(0);
 
   const [segmentStartTime, setSegmentStartTime] = useState<number>(Date.now());
   const [elapsed, setElapsed] = useState(0);
@@ -59,6 +63,8 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
   const breakIntervalRef = useRef<number>(0);
   const alarmLoopRef = useRef<number | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+
+  const { t } = useTranslation();
 
   useEffect(() => {
     const incomplete = tasks.filter(t => !t.isCompleted);
@@ -258,7 +264,7 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
   const activeTask = tasks.find(t => t.id === activeTaskId);
 
   return (
-    <div className="flex flex-col h-full bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white relative overflow-hidden transition-colors">
+    <div className="fixed inset-0 z-50 flex flex-col h-screen bg-zinc-50 dark:bg-black text-zinc-900 dark:text-white overflow-hidden transition-colors">
       <div className={`absolute top-0 left-0 w-full h-2 bg-gradient-to-r transition-colors duration-500 ${isOnBreak ? 'from-green-500 to-emerald-500' : 'from-primary-500 to-primary-800'}`} />
 
       {/* Exit Button Removed per "Anti-procrastination" spec: Users must complete tasks or close tab. */}
@@ -267,25 +273,25 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
         {isOnBreak && (
           <div className="absolute inset-0 z-50 bg-white/95 dark:bg-black/95 flex flex-col items-center justify-center p-8 animate-in fade-in duration-300 rounded-2xl">
             <Coffee size={64} className="text-green-500 mb-6" />
-            <h2 className="text-3xl font-bold mb-2 text-zinc-900 dark:text-white">Take a Breather</h2>
-            {activeBreakIsBanked && <div className="mb-6 flex items-center gap-2 text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-900/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse"><PiggyBank size={14} /> Time Bank Active</div>}
+            <h2 className="text-3xl font-bold mb-2 text-zinc-900 dark:text-white">{t('takeABreather')}</h2>
+            {activeBreakIsBanked && <div className="mb-6 flex items-center gap-2 text-pink-600 dark:text-pink-400 bg-pink-100 dark:bg-pink-900/30 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide animate-pulse"><PiggyBank size={14} /> {t('timeBankActive')}</div>}
             <div className={`text-8xl font-mono font-black mb-12 tabular-nums transition-colors ${breakTimeRemaining <= 0 ? 'text-red-500 animate-pulse' : 'text-zinc-900 dark:text-white'}`}>{formatTime(Math.max(0, breakTimeRemaining))}</div>
-            <button onClick={endBreak} className="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-8 py-4 rounded-xl font-bold text-lg transition-all active:scale-95">{activeBreakIsBanked ? "Stop & Refund Remaining" : "Skip Break"}</button>
+            <button onClick={endBreak} className="bg-zinc-200 dark:bg-zinc-800 hover:bg-zinc-300 dark:hover:bg-zinc-700 text-zinc-900 dark:text-white px-8 py-4 rounded-xl font-bold text-lg transition-all active:scale-95">{activeBreakIsBanked ? t('stopRefund') : t('skipBreak')}</button>
           </div>
         )}
 
         {showBreakMenu && (
-          <div className="absolute inset-0 z-40 bg-zinc-200/50 dark:bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200 backdrop-blur-sm rounded-2xl">
+          <div className="fixed inset-0 z-50 bg-zinc-200/50 dark:bg-black/80 flex items-center justify-center p-4 animate-in fade-in duration-200 backdrop-blur-sm">
             <div className="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 rounded-2xl w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
               <div className="p-4 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center bg-zinc-50 dark:bg-zinc-950">
-                <h3 className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2"><Coffee className="text-green-500" size={20} /> Break Dashboard</h3>
+                <h3 className="text-lg font-black text-zinc-900 dark:text-white flex items-center gap-2"><Coffee className="text-green-500" size={20} /> {t('breakDashboard')}</h3>
                 <button onClick={() => setShowBreakMenu(false)} className="text-zinc-400 hover:text-zinc-900 dark:hover:text-white p-1"><X size={20} /></button>
               </div>
               <div className="overflow-y-auto p-4 space-y-6">
                 {/* CUSTOM PRESET BREAK (FROM SETTINGS) */}
                 {settings.customBreakMinutes > 0 && (
                   <div>
-                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">Preset Break</div>
+                    <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2">{t('presetBreak')}</div>
                     <button
                       onClick={() => startBreak(settings.customBreakMinutes, true)}
                       disabled={settings.customBreakMinutes > settings.timeBankMinutes}
@@ -295,7 +301,7 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
                         <div className={`p-2 rounded-xl ${settings.customBreakMinutes > settings.timeBankMinutes ? 'bg-zinc-200 text-zinc-400' : 'bg-primary-500 text-white'}`}><Timer size={20} /></div>
                         <div className="text-left">
                           <div className="font-black text-zinc-900 dark:text-white">{settings.customBreakMinutes}m Custom</div>
-                          <div className="text-[10px] uppercase font-bold text-zinc-400">Fixed duration</div>
+                          <div className="text-[10px] uppercase font-bold text-zinc-400">{t('fixedDuration')}</div>
                         </div>
                       </div>
                       {settings.customBreakMinutes > settings.timeBankMinutes && <ShieldAlert size={16} className="text-red-500" />}
@@ -304,18 +310,18 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
                 )}
 
                 <div>
-                  <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">Quick Adjust Break</div>
+                  <div className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">{t('quickAdjust')}</div>
                   <div className="bg-zinc-50 dark:bg-zinc-800/50 p-4 rounded-xl border border-zinc-200 dark:border-zinc-700/50">
                     <div className="text-center mb-4"><div className="text-3xl font-black text-zinc-900 dark:text-white">{standardBreakDuration}<span className="text-sm font-medium text-zinc-500 ml-1">min</span></div></div>
                     <input type="range" min="1" max="15" value={standardBreakDuration} onChange={(e) => setStandardBreakDuration(parseInt(e.target.value))} className="w-full accent-primary-500 h-2 bg-zinc-200 dark:bg-zinc-700 rounded-lg appearance-none cursor-pointer mb-4" />
-                    <button onClick={() => startBreak(standardBreakDuration, true)} disabled={standardBreakDuration > settings.timeBankMinutes} className="w-full py-3 bg-zinc-900 dark:bg-white text-white dark:text-black font-bold rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{standardBreakDuration > settings.timeBankMinutes ? <><ShieldAlert size={18} /> Insufficient Bank</> : `Start ${standardBreakDuration}m Break`}</button>
+                    <button onClick={() => startBreak(standardBreakDuration, true)} disabled={standardBreakDuration > settings.timeBankMinutes} className="w-full py-3 bg-zinc-900 dark:bg-white text-white dark:text-black font-bold rounded-xl transition-opacity hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">{standardBreakDuration > settings.timeBankMinutes ? <><ShieldAlert size={18} /> {t('insufficientBank')}</> : t('startBreakDuration', { duration: standardBreakDuration })}</button>
                   </div>
                 </div>
 
                 <div className={`rounded-xl border-2 p-4 transition-all ${settings.timeBankMinutes > 0 ? 'border-pink-200 dark:border-pink-900 bg-pink-50/50 dark:bg-pink-900/10' : 'border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900 opacity-80'}`}>
                   <div className="flex justify-between items-start mb-4">
                     <div>
-                      <div className="text-xs font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 mb-1 flex items-center gap-1"><PiggyBank size={14} /> Time Bank</div>
+                      <div className="text-xs font-bold uppercase tracking-wider text-pink-600 dark:text-pink-400 mb-1 flex items-center gap-1"><PiggyBank size={14} /> {t('timeBank')}</div>
                       <div className="text-3xl font-black text-zinc-900 dark:text-white">{ProductivityEngine.formatBank(settings.timeBankMinutes)}<span className="text-sm font-medium text-zinc-500 ml-1">min</span></div>
                     </div>
                   </div>
@@ -326,9 +332,9 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
                         <div className="flex-1 text-center"><div className="text-xl font-bold text-pink-700 dark:text-pink-300">{withdrawalAmount}m</div></div>
                         <button onClick={() => setWithdrawalAmount(prev => Math.min(Math.min(15, settings.timeBankMinutes), prev + 1))} className="p-2 bg-white dark:bg-black rounded-lg border border-pink-200 dark:border-pink-800 hover:border-pink-400 text-pink-700 dark:text-pink-300"><Plus size={16} /></button>
                       </div>
-                      <button onClick={() => startBreak(withdrawalAmount, true)} className="w-full py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl shadow-md shadow-pink-500/20 transition-all">Withdraw & Start Break</button>
+                      <button onClick={() => startBreak(withdrawalAmount, true)} className="w-full py-3 bg-pink-600 hover:bg-pink-500 text-white font-bold rounded-xl shadow-md shadow-pink-500/20 transition-all">{t('withdrawStart')}</button>
                     </div>
-                  ) : <div className="text-center py-2 text-sm text-zinc-400 italic">Bank is empty.</div>}
+                  ) : <div className="text-center py-2 text-sm text-zinc-400 italic">{t('bankEmpty')}</div>}
                 </div>
               </div>
             </div>
@@ -336,19 +342,19 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
         )}
 
         <div className="flex justify-between items-center mb-8 shrink-0">
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${isFocusGuardActive ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200' : 'bg-zinc-100 dark:bg-zinc-900/30 text-zinc-700 dark:text-zinc-300 border-zinc-200'}`}>{isFocusGuardActive ? <><Shield size={14} /> Guard On</> : <><PlayCircle size={14} /> Background</>}</div>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wider border ${isFocusGuardActive ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200' : 'bg-zinc-100 dark:bg-zinc-900/30 text-zinc-700 dark:text-zinc-300 border-zinc-200'}`}>{isFocusGuardActive ? <><Shield size={14} /> {t('guardOn')}</> : <><PlayCircle size={14} /> {t('background')}</>}</div>
           <div className="flex items-center gap-4">
-            {history.length > 0 && <button onClick={handleUndo} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center gap-1 text-sm"><RotateCcw size={14} /> Undo</button>}
-            {settings.enableBreaks && !isOnBreak && <button onClick={() => setShowBreakMenu(true)} className="text-zinc-500 hover:text-green-600 dark:hover:text-green-400 flex items-center gap-1 text-sm transition-colors"><Coffee size={14} /> Break</button>}
+            {history.length > 0 && <button onClick={handleUndo} className="text-zinc-500 hover:text-zinc-900 dark:hover:text-white flex items-center gap-1 text-sm"><RotateCcw size={14} /> {t('undo')}</button>}
+            {settings.enableBreaks && !isOnBreak && <button onClick={() => setShowBreakMenu(true)} className="text-zinc-500 hover:text-green-600 dark:hover:text-green-400 flex items-center gap-1 text-sm transition-colors"><Coffee size={14} /> {t('break')}</button>}
           </div>
         </div>
 
         <div className="flex-1 flex flex-col justify-center items-center text-center z-10 min-h-0">
-          <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-transparent bg-clip-text bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-500 max-w-full truncate px-4">{activeTask?.title || "Focus Split"}</h1>
+          <h1 className="text-4xl md:text-6xl font-black mb-6 leading-tight text-transparent bg-clip-text bg-gradient-to-br from-zinc-900 to-zinc-500 dark:from-white dark:to-zinc-500 max-w-full truncate px-4">{activeTask?.title || t('focusSplit')}</h1>
 
           {isPaused && (
             <div className="mt-8 bg-yellow-100 dark:bg-yellow-900/90 text-yellow-800 dark:text-yellow-200 px-6 py-3 rounded-full flex items-center gap-2 border border-yellow-300 animate-pulse">
-              <EyeOff size={20} /> Timer Paused
+              <EyeOff size={20} /> {t('timerPaused')}
             </div>
           )}
         </div>
@@ -356,12 +362,61 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
         <div className="grid grid-cols-2 gap-4 mt-12 mb-8 shrink-0">
           <button onClick={handleSplit} className="group relative flex items-center justify-center gap-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 hover:border-zinc-300 text-zinc-900 dark:text-white p-6 md:p-8 rounded-2xl transition-all shadow-sm">
             <SkipForward size={24} className="text-primary-600 md:w-8 md:h-8" />
-            <div className="text-left"><div className="font-bold text-lg md:text-xl">Split Task</div><div className="text-xs text-zinc-500">Rotate & Accumulate</div></div>
+            <div className="text-left"><div className="font-bold text-lg md:text-xl">{t('splitTask')}</div><div className="text-xs text-zinc-500">{t('rotateAccumulate')}</div></div>
           </button>
           <button onClick={handleComplete} className="group relative flex items-center justify-center gap-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-950/50 border border-green-200 dark:border-green-900/50 hover:border-green-400 text-green-900 dark:text-white p-6 md:p-8 rounded-2xl transition-all">
             <CheckCircle2 size={24} className="text-green-600 md:w-8 md:h-8" />
-            <div className="text-left"><div className="font-bold text-lg md:text-xl">Complete</div><div className="text-xs text-green-700/60">Mark Done & Next</div></div>
+            <div className="text-left"><div className="font-bold text-lg md:text-xl">{t('complete')}</div><div className="text-xs text-green-700/60">{t('markDoneNext')}</div></div>
           </button>
+        </div>
+
+        <div className="mt-6 shrink-0 max-h-48 overflow-y-auto mb-8 border-t border-zinc-100 dark:border-zinc-800 pt-4">
+          <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-2 px-1">{t('upNext')}</h3>
+          <div className="space-y-2">
+            {tasks.filter(t => !t.isCompleted && t.id !== activeTaskId).map(task => {
+              const displayProgress = draggingTaskId === task.id ? dragProgress : (task.progress || 0);
+
+              const handleSliderChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const val = parseInt(e.target.value);
+                setDraggingTaskId(task.id);
+                setDragProgress(val);
+              };
+
+              const handleCommit = () => {
+                setDraggingTaskId(null);
+                onProgressUpdate(task.id, dragProgress);
+              };
+
+              return (
+                <div key={task.id} className="group/card relative p-3 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-xl flex items-center justify-between overflow-hidden shadow-sm hover:border-zinc-300 dark:hover:border-zinc-700 transition-all">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={displayProgress}
+                    onChange={handleSliderChange}
+                    onMouseUp={handleCommit}
+                    className="absolute inset-0 w-full h-full opacity-0 z-10 cursor-col-resize"
+                    title="Drag to update progress"
+                  />
+                  {displayProgress > 0 && (
+                    <div className="absolute top-0 bottom-0 left-0 bg-primary-500/10 dark:bg-primary-500/20 pointer-events-none transition-all z-0" style={{ width: `${displayProgress}%` }} />
+                  )}
+                  {/* Hover hint */}
+                  <div className="absolute inset-0 opacity-0 group-hover/card:opacity-100 pointer-events-none z-0 transition-opacity bg-zinc-50/50 dark:bg-zinc-800/50 mix-blend-multiply dark:mix-blend-screen" />
+
+                  <span className="font-medium relative z-0 pointer-events-none">{task.title}</span>
+                  <div className="flex items-center gap-2 relative z-0 pointer-events-none">
+                    {(displayProgress > 0 || (task.progress || 0) > 0) && <span className="text-[10px] font-bold text-primary-600 dark:text-primary-400">{displayProgress}%</span>}
+                    {task.estimatedTime && <span className="text-xs text-zinc-400 font-mono">{task.estimatedTime}m</span>}
+                  </div>
+                </div>
+              );
+            })}
+            {tasks.filter(t => !t.isCompleted && t.id !== activeTaskId).length === 0 && (
+              <div className="text-center text-zinc-400 text-sm italic py-2">{t('noTasksQueued')}</div>
+            )}
+          </div>
         </div>
       </div>
     </div>

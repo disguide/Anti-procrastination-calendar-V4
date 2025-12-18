@@ -25,6 +25,7 @@ export interface Task {
   urgency?: PriorityLevel;
   importance?: PriorityLevel;
   progress?: number; // 0-100 percentage for tasks without estimates
+  completionDate?: string; // YYYY-MM-DD when the task was completed
 }
 
 export interface WorkLog {
@@ -50,14 +51,17 @@ export interface DailyStats {
   completedTasks: number;
 }
 
-export type Theme = 
-  | 'yin' | 'yang' 
+export type Theme =
+  | 'yin' | 'yang'
   | 'zen' | 'forest'
   | 'seafoam' | 'midnight'
   | 'sunrise' | 'volcano'
   | 'lavender' | 'galactic'
   | 'dune' | 'espresso'
   | 'hologram' | 'cyberpunk';
+
+// Language options
+export type Language = 'en' | 'fr' | 'es' | 'zh';
 
 export interface SprintSettings {
   enableBreaks: boolean;
@@ -68,6 +72,7 @@ export interface SprintSettings {
   darkMode: boolean;
   timeBankMinutes: number; // Time Bank feature
   earningRatio: number; // 1:X ratio for earning time
+  language?: Language; // Default 'en'
 }
 
 // Unified state structure for persistence
