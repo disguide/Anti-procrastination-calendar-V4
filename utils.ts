@@ -39,6 +39,37 @@ export const ProductivityEngine = {
   },
 
   /**
+   * Calculates earned Liberty (Leisure) minutes based on ms worked and ratio.
+   * Logic: Inverse of Break Ratios.
+   * - Ratios 1-10: Formula (11 - ratio) -> 1/10 to 1/1 earnings.
+   * - Elite Tiers: Fixed multipliers based on difficulty.
+   */
+  calculateLibertyEarnings: (msWorked: number, ratio: number): number => {
+    if (msWorked <= 0 || ratio <= 0) return 0;
+    const minutesWorked = msWorked / 60000;
+
+    let multiplier = 0;
+
+    // Elite Tiers (Penalties for extreme difficulty)
+    if (ratio >= 100) multiplier = 0.1;
+    else if (ratio >= 50) multiplier = 0.25;
+    else if (ratio >= 25) multiplier = 0.5;
+
+    // Standard Tiers (Inverse Logic: Harder Work = More Leisure)
+    // Ratio 1 (Easy) -> Divisor 10 (0.1x)
+    // Ratio 10 (Hard) -> Divisor 1 (1.0x)
+    else {
+      // Linear interpolation: Ratio 1 -> 10, Ratio 10 -> 1
+      // Formula: Divisor = 11 - ratio
+      const divisor = Math.max(1, 11 - ratio);
+      multiplier = 1 / divisor;
+    }
+
+    const earned = minutesWorked * multiplier;
+    return Math.round(earned * 100) / 100;
+  },
+
+  /**
    * Formats a bank balance for display (e.g., 4.25m)
    */
   formatBank: (minutes: number): string => {
@@ -49,12 +80,12 @@ export const ProductivityEngine = {
    * Get metadata for the ratio tiers
    */
   getTierInfo: (ratio: number) => {
-    if (ratio === 1) return { label: "Casual", color: "text-green-500", icon: "🌱" };
-    if (ratio <= 5) return { label: "Balanced", color: "text-blue-500", icon: "⚖️" };
-    if (ratio <= 10) return { label: "Grind", color: "text-orange-500", icon: "🔥" };
-    if (ratio <= 25) return { label: "Elite", color: "text-purple-500", icon: "🏆" };
-    if (ratio <= 50) return { label: "Hardcore", color: "text-red-500", icon: "💀" };
-    return { label: "God Mode", color: "text-pink-500", icon: "👑" };
+    if (ratio === 1) return { labelKey: "chill", color: "text-green-500", icon: "🌱" };
+    if (ratio <= 5) return { labelKey: "balanced", color: "text-blue-500", icon: "⚖️" };
+    if (ratio <= 10) return { labelKey: "grind", color: "text-orange-500", icon: "🔥" };
+    if (ratio <= 25) return { labelKey: "elite", color: "text-purple-500", icon: "🏆" };
+    if (ratio <= 50) return { labelKey: "hardcore", color: "text-red-500", icon: "💀" };
+    return { labelKey: "godMode", color: "text-pink-500", icon: "👑" };
   }
 };
 

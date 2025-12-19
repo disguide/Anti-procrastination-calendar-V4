@@ -173,9 +173,16 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
 
   const commitTask = (taskId: string, time: number, completed: boolean) => {
     const earned = ProductivityEngine.calculateEarnings(time, settings.earningRatio || 5);
-    if (earned > 0) {
+    const earnedLiberty = ProductivityEngine.calculateLibertyEarnings(time, settings.earningRatio || 5);
+
+    if (earned > 0 || earnedLiberty > 0) {
       const newBank = Math.round((settings.timeBankMinutes + earned) * 100) / 100;
-      onUpdateSettings({ ...settings, timeBankMinutes: newBank });
+      const newLiberty = Math.round(((settings.libertyMinutes || 0) + earnedLiberty) * 100) / 100;
+      onUpdateSettings({
+        ...settings,
+        timeBankMinutes: newBank,
+        libertyMinutes: newLiberty
+      });
     }
     const snapshot: HistorySnapshot = {
       taskId, timeSpent: time, wasCompleted: completed, timestamp: Date.now(), earnedMinutes: earned
@@ -364,6 +371,7 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
             <SkipForward size={24} className="text-primary-600 md:w-8 md:h-8" />
             <div className="text-left"><div className="font-bold text-lg md:text-xl">{t('splitTask')}</div><div className="text-xs text-zinc-500">{t('rotateAccumulate')}</div></div>
           </button>
+
           <button onClick={handleComplete} className="group relative flex items-center justify-center gap-3 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/50 dark:to-green-950/50 border border-green-200 dark:border-green-900/50 hover:border-green-400 text-green-900 dark:text-white p-6 md:p-8 rounded-2xl transition-all">
             <CheckCircle2 size={24} className="text-green-600 md:w-8 md:h-8" />
             <div className="text-left"><div className="font-bold text-lg md:text-xl">{t('complete')}</div><div className="text-xs text-green-700/60">{t('markDoneNext')}</div></div>
@@ -420,6 +428,7 @@ const SprintMode: React.FC<SprintModeProps> = ({ tasks, settings, onUpdateTask, 
         </div>
       </div>
     </div>
+
   );
 };
 

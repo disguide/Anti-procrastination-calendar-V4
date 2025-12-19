@@ -26,6 +26,8 @@ export interface Task {
   importance?: PriorityLevel;
   progress?: number; // 0-100 percentage for tasks without estimates
   completionDate?: string; // YYYY-MM-DD when the task was completed
+  rolloverCount?: number; // How many times task has been rolled over
+
 }
 
 export interface WorkLog {
@@ -43,7 +45,7 @@ export interface ArchiveStats {
   lastPrunedDate: string;
 }
 
-export type ViewMode = 'planning' | 'active' | 'summary' | 'profile' | 'calendar' | 'settings';
+export type ViewMode = 'planning' | 'active' | 'summary' | 'profile' | 'calendar' | 'settings' | 'leisure';
 
 export interface DailyStats {
   date: string;
@@ -63,6 +65,20 @@ export type Theme =
 // Language options
 export type Language = 'en' | 'fr' | 'es' | 'zh';
 
+export interface Alarm {
+  id: string;
+  name: string;
+  time: string; // HH:mm
+  enabled: boolean;
+  days?: number[]; // Optional bitmask or array of days, defaults to daily if undefined
+}
+
+export interface Timer {
+  id: string;
+  name: string;
+  durationMinutes: number;
+}
+
 export interface SprintSettings {
   enableBreaks: boolean;
   customBreakMinutes: number; // Configurable custom/long break
@@ -71,8 +87,12 @@ export interface SprintSettings {
   theme: Theme;
   darkMode: boolean;
   timeBankMinutes: number; // Time Bank feature
+  libertyMinutes: number; // New Leisure currency
   earningRatio: number; // 1:X ratio for earning time
+  leisureRatio: number; // X:1 ratio for burning time
   language?: Language; // Default 'en'
+  alarms?: Alarm[];
+  timers?: Timer[];
 }
 
 // Unified state structure for persistence

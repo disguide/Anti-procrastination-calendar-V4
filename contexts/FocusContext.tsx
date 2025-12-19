@@ -158,8 +158,43 @@ export function FocusProvider({ children }: { children: React.ReactNode }) {
     };
 
     // --- Maintenance ---
+    // --- Maintenance ---
     const performMaintenance = useCallback(async (todayStr: string) => {
-        // ... (existing rollover logic)
+        await db.transaction('rw', db.tasks, db.sessions, async () => {
+            // 1. Ensure a session exists for today (Create if missing)
+            // This runs on app boot, so it guarantees "Main Focus" appears for today.
+            let todaySession = await db.sessions.where('date').equals(todayStr).first();
+            if (!todaySession) {
+                todaySession = {
+                    id: crypto.randomUUID(),
+                    name: DEFAULT_SESSION_NAME,
+                    date: todayStr
+                };
+                await db.sessions.add(todaySession);
+            }
+
+            // 2. Find stale uncompleted tasks from the past (for Rollover)
+            const staleTasks = await db.tasks
+                .where('date')
+                .below(todayStr)
+                .and(t => !t.isCompleted)
+                .toArray();
+
+            if (staleTasks.length === 0) return;
+
+            console.log(`Found ${staleTasks.length} stale tasks to rollover automatically.`);
+
+            // 3. Batch update tasks
+            for (const task of staleTasks) {
+                const newCount = (task.rolloverCount || 0) + 1;
+                await db.tasks.update(task.id, {
+                    date: todayStr,
+                    sessionId: todaySession.id,
+                    isRollover: true,
+                    rolloverCount: newCount
+                });
+            }
+        });
     }, []);
 
     const pruneData = async (daysToKeep = 180) => {

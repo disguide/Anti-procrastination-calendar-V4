@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
-import { User, Globe, Palette, ChevronRight, LogOut, Shield, Moon, Sun, Settings, Sparkles, Database, History, Zap, Timer, Award, TrendingUp, Flame, Rocket, Crown, ShieldAlert, ShieldCheck, X, Coffee, PiggyBank, Languages, Settings2 } from 'lucide-react';
+import { User, Globe, Palette, ChevronRight, LogOut, Shield, Moon, Sun, Settings, Sparkles, Database, History, Zap, Timer, Award, TrendingUp, Flame, Rocket, Crown, ShieldAlert, ShieldCheck, X, Coffee, PiggyBank, Languages, Settings2, Lock, Play } from 'lucide-react';
 import { Theme, ArchiveStats, SprintSettings, Language } from '../types';
 import { ProductivityEngine } from '../utils';
 import { useTranslation } from '../hooks/useTranslation';
@@ -16,19 +16,21 @@ interface ParametersViewProps {
     sprintSettings: SprintSettings;
     onUpdateSettings: (settings: SprintSettings) => void;
     onPruneData: () => void;
+    totalFocusMs: number;
+    onStartLeisure?: (duration?: number) => void;
 }
 
-const THEME_PAIRS: { name: string; light: Theme; dark: Theme; lightColor: string; darkColor: string; description: string }[] = [
-    { name: 'Yin & Yang', light: 'yin', dark: 'yang', lightColor: 'bg-zinc-100', darkColor: 'bg-zinc-900', description: 'Classic Monochrome' },
-    { name: 'Zen Garden', light: 'zen', dark: 'forest', lightColor: 'bg-green-100', darkColor: 'bg-green-900', description: 'Nature Inspired' },
-    { name: 'Oceanic', light: 'seafoam', dark: 'midnight', lightColor: 'bg-cyan-100', darkColor: 'bg-slate-900', description: 'Calm Waters' },
-    { name: 'Solar', light: 'sunrise', dark: 'volcano', lightColor: 'bg-orange-100', darkColor: 'bg-red-900', description: 'Warm Energy' },
-    { name: 'Neon', light: 'lavender', dark: 'galactic', lightColor: 'bg-purple-100', darkColor: 'bg-indigo-900', description: 'Vibrant & Deep' },
-    { name: 'Dune', light: 'dune', dark: 'espresso', lightColor: 'bg-amber-100', darkColor: 'bg-stone-900', description: 'Earthy Tones' },
-    { name: 'Cyberpunk', light: 'hologram', dark: 'cyberpunk', lightColor: 'bg-blue-100', darkColor: 'bg-yellow-900', description: 'High Tech' },
+const THEME_PAIRS: { nameKey: string; light: Theme; dark: Theme; lightColor: string; darkColor: string; descKey: string }[] = [
+    { nameKey: 'themeYinYang', light: 'yin', dark: 'yang', lightColor: 'bg-zinc-100', darkColor: 'bg-zinc-900', descKey: 'themeDescMonochrome' },
+    { nameKey: 'themeZenGarden', light: 'zen', dark: 'forest', lightColor: 'bg-green-100', darkColor: 'bg-green-900', descKey: 'themeDescNature' },
+    { nameKey: 'themeOceanic', light: 'seafoam', dark: 'midnight', lightColor: 'bg-cyan-100', darkColor: 'bg-slate-900', descKey: 'themeDescWater' },
+    { nameKey: 'themeSolar', light: 'sunrise', dark: 'volcano', lightColor: 'bg-orange-100', darkColor: 'bg-red-900', descKey: 'themeDescWarm' },
+    { nameKey: 'themeNeon', light: 'lavender', dark: 'galactic', lightColor: 'bg-purple-100', darkColor: 'bg-indigo-900', descKey: 'themeDescVibrant' },
+    { nameKey: 'themeDune', light: 'dune', dark: 'espresso', lightColor: 'bg-amber-100', darkColor: 'bg-stone-900', descKey: 'themeDescEarthy' },
+    { nameKey: 'themeCyberpunk', light: 'hologram', dark: 'cyberpunk', lightColor: 'bg-blue-100', darkColor: 'bg-lime-500', descKey: 'themeDescTech' },
 ];
 
-const RATIO_OPTIONS = [1, 2, 3, 5, 8, 13, 21, 34, 55, 89];
+const RATIO_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50, 100];
 
 const ParametersView: React.FC<ParametersViewProps> = ({
     currentTheme,
@@ -41,15 +43,18 @@ const ParametersView: React.FC<ParametersViewProps> = ({
     sprintSettings,
     onUpdateSettings,
     onPruneData,
-    onReset
+    onReset,
+    totalFocusMs,
+    onStartLeisure
 }) => {
     const scrollRef = useRef<HTMLDivElement>(null);
     const [newAllowedApp, setNewAllowedApp] = useState('');
+    const [selectedDuration, setSelectedDuration] = useState(15);
     const { t } = useTranslation();
 
     const addAllowedApp = () => {
         if (newAllowedApp.trim()) {
-            onUpdateSettings({ ...sprintSettings, allowedApps: [...sprintSettings.allowedApps, newAllowedApp.trim()] });
+            onUpdateSettings({ ...sprintSettings, allowedApps: [...(sprintSettings.allowedApps || []), newAllowedApp.trim()] });
             setNewAllowedApp('');
         }
     };
@@ -72,23 +77,25 @@ const ParametersView: React.FC<ParametersViewProps> = ({
     return (
         <div className="h-full flex flex-col bg-zinc-50 dark:bg-black/50 backdrop-blur-3xl transition-colors overflow-hidden">
             {/* Header */}
-            <div className="shrink-0 p-4 border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md">
-                <div className="flex items-center gap-2">
-                    <div className="p-2 bg-primary-500/10 text-primary-600 dark:text-primary-400 rounded-xl">
-                        <Settings2 size={20} />
+            <div className="shrink-0 border-b border-zinc-200 dark:border-zinc-800 bg-white/50 dark:bg-zinc-900/50 backdrop-blur-md">
+                <div className="flex items-center justify-between p-4 max-w-2xl mx-auto w-full">
+                    <div className="flex items-center gap-2">
+                        <div className="p-2 bg-primary-500/10 text-primary-600 dark:text-primary-400 rounded-xl">
+                            <Settings2 size={20} />
+                        </div>
+                        <div>
+                            <h2 className="text-lg font-black tracking-tight text-zinc-900 dark:text-white">{t('parameters')}</h2>
+                            <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{t('systemConfiguration')}</p>
+                        </div>
                     </div>
-                    <div>
-                        <h2 className="text-lg font-black tracking-tight text-zinc-900 dark:text-white">{t('parameters')}</h2>
-                        <p className="text-xs font-medium text-zinc-500 dark:text-zinc-400">{t('systemConfiguration')}</p>
-                    </div>
+                    <button onClick={onToggleDarkMode} className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
+                        {darkMode ? <Moon size={20} /> : <Sun size={20} />}
+                    </button>
                 </div>
-                <button onClick={onToggleDarkMode} className="p-2 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors">
-                    {darkMode ? <Moon size={20} /> : <Sun size={20} />}
-                </button>
             </div>
 
             <div className="flex-1 overflow-y-auto no-scrollbar">
-                <div className="px-4 space-y-6 py-6">
+                <div className="px-4 space-y-6 py-6 max-w-2xl mx-auto w-full">
 
                     {archive && archive.totalFocusMs > 0 && (
                         <div className="px-0 mb-8">
@@ -127,7 +134,7 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                                 {sprintSettings.enforceFocusGuard && (
                                     <div className="mt-2 pl-4 border-l-2 border-red-200 dark:border-red-900/50 animate-in slide-in-from-top-2 fade-in">
                                         <input type="text" value={newAllowedApp} onChange={(e) => setNewAllowedApp(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && addAllowedApp()} placeholder="Add exception..." className="w-full text-sm bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 rounded-lg px-3 py-2 mb-2" />
-                                        <div className="flex flex-wrap gap-2">{sprintSettings.allowedApps.map((app, idx) => (<span key={idx} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">{app}<button onClick={() => onUpdateSettings({ ...sprintSettings, allowedApps: sprintSettings.allowedApps.filter(a => a !== app) })}><X size={12} /></button></span>))}</div>
+                                        <div className="flex flex-wrap gap-2">{(sprintSettings.allowedApps || []).map((app, idx) => (<span key={idx} className="inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-md bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 border border-green-200 dark:border-green-800">{app}<button onClick={() => onUpdateSettings({ ...sprintSettings, allowedApps: (sprintSettings.allowedApps || []).filter(a => a !== app) })}><X size={12} /></button></span>))}</div>
                                     </div>
                                 )}
                             </div>
@@ -137,18 +144,18 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                             {/* Break System */}
                             <div>
                                 <div className="flex items-center justify-between p-2">
-                                    <label className="text-sm font-bold flex items-center gap-2"><Coffee size={16} className="text-orange-500" /> {t('enableBreaks')}</label>
+                                    <label className="text-sm font-bold flex items-center gap-2 text-primary-700 dark:text-primary-400"><Coffee size={16} className="text-primary-500" /> {t('enableBreaks')}</label>
                                     <input type="checkbox" checked={sprintSettings.enableBreaks} onChange={e => onUpdateSettings({ ...sprintSettings, enableBreaks: e.target.checked })} className="accent-primary-500 h-5 w-5" />
                                 </div>
                                 {sprintSettings.enableBreaks && (
                                     <div className="pl-4 border-l-2 border-zinc-200 dark:border-zinc-800 space-y-4 mt-2">
                                         <div className="flex items-center justify-between p-2">
                                             <label className="text-sm flex items-center gap-2 text-zinc-600 dark:text-zinc-400">{t('customBreak')}</label>
-                                            <input type="number" min="1" max="120" value={sprintSettings.customBreakMinutes === 0 ? '' : sprintSettings.customBreakMinutes} onChange={e => onUpdateSettings({ ...sprintSettings, customBreakMinutes: parseInt(e.target.value) || 0 })} className="bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded p-1 w-16 text-center text-sm font-bold" />
+                                            <input type="number" min="1" max="120" value={sprintSettings.customBreakMinutes === 0 ? '' : sprintSettings.customBreakMinutes} onChange={e => onUpdateSettings({ ...sprintSettings, customBreakMinutes: parseInt(e.target.value) || 0 })} className="bg-zinc-100 dark:bg-black border border-zinc-300 dark:border-zinc-700 rounded p-1 w-16 text-center text-sm font-bold text-zinc-900 dark:text-white" />
                                         </div>
                                         <div className="flex items-center justify-between p-2">
                                             <label className="text-sm flex items-center gap-2 text-zinc-600 dark:text-zinc-400"><PiggyBank size={14} className="text-pink-500" />{t('timeBankBalance')}</label>
-                                            <div className="bg-pink-50 dark:bg-pink-950/20 px-3 py-1 rounded-lg text-sm font-bold text-pink-700 dark:text-pink-400">{sprintSettings.timeBankMinutes.toFixed(2)} min</div>
+                                            <div className="bg-pink-50 dark:bg-pink-950/20 px-3 py-1 rounded-lg text-sm font-bold text-pink-700 dark:text-pink-400">{(sprintSettings.timeBankMinutes || 0).toFixed(2)} min</div>
                                         </div>
                                     </div>
                                 )}
@@ -167,9 +174,10 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                                     <div>
                                         <div className="text-[10px] font-black uppercase tracking-widest mb-1 text-zinc-400">{t('currentLevel')}</div>
                                         <div className={`text-3xl font-black flex items-center gap-2 ${tier.color}`}>
-                                            {tier.icon} {tier.label}
+                                            {tier.icon} {t(tier.labelKey)}
                                         </div>
                                         <div className="text-[10px] text-zinc-400 mt-1">{t('earningPowerDescription', { ratio: earningRatio })}</div>
+                                        <div className="text-[10px] text-pink-500 font-bold mt-0.5 flex items-center gap-1"><Coffee size={10} /> +{(earningRatio >= 100 ? 0.1 : earningRatio >= 50 ? 0.25 : earningRatio >= 25 ? 0.5 : earningRatio / 10).toFixed(2)}x {t('leisureMode')}</div>
                                     </div>
                                     <div className="text-right">
                                         <div className="text-primary-600 dark:text-primary-400 font-black text-4xl tabular-nums">1:{earningRatio}</div>
@@ -191,12 +199,14 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                                     >
                                         <Rocket size={14} /> <span className="text-[10px] font-black uppercase">{t('grind')}</span>
                                     </button>
-                                    <button
-                                        onClick={() => onEarningRatioChange(100)}
-                                        className={`flex-1 py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${earningRatio === 100 ? 'bg-pink-600 border-pink-600 text-white' : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-100 dark:border-zinc-700'}`}
-                                    >
-                                        <Crown size={14} /> <span className="text-[10px] font-black uppercase">{t('legend')}</span>
-                                    </button>
+                                    {(totalFocusMs / 3600000) >= 1000 && (
+                                        <button
+                                            onClick={() => onEarningRatioChange(100)}
+                                            className={`flex-1 py-2 px-3 rounded-xl border flex items-center justify-center gap-2 transition-all ${earningRatio === 100 ? 'bg-pink-600 border-pink-600 text-white' : 'bg-zinc-50 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border-zinc-100 dark:border-zinc-700'}`}
+                                        >
+                                            <Crown size={14} /> <span className="text-[10px] font-black uppercase">{t('legend')}</span>
+                                        </button>
+                                    )}
                                 </div>
                             </div>
 
@@ -212,6 +222,17 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                                         const valTier = ProductivityEngine.getTierInfo(val);
                                         const isElite = val >= 25;
 
+                                        // Gamification Logic
+                                        const hours = totalFocusMs / 3600000;
+                                        let isLocked = false;
+                                        let reqHours = 0;
+
+                                        if (val === 25) { isLocked = hours < 250; reqHours = 250; }
+                                        else if (val === 50) { isLocked = hours < 500; reqHours = 500; }
+                                        else if (val === 100) { isLocked = hours < 1000; reqHours = 1000; }
+
+                                        if (isLocked) return null;
+
                                         return (
                                             <button
                                                 key={val}
@@ -226,7 +247,7 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                                             >
                                                 <span className={`text-[10px] font-black leading-none mb-1 ${isActive ? 'text-primary-500' : 'text-zinc-400'}`}>1:</span>
                                                 <span className={`text-2xl font-black leading-none ${isActive ? 'text-zinc-900 dark:text-white' : ''}`}>{val}</span>
-                                                <span className={`text-[8px] mt-3 font-black uppercase tracking-tighter ${isActive ? valTier.color : 'text-zinc-500'}`}>{valTier.label}</span>
+                                                <span className={`text-[8px] mt-3 font-black uppercase tracking-tighter ${isActive ? valTier.color : 'text-zinc-500'}`}>{t(valTier.labelKey)}</span>
 
                                                 {isElite && (
                                                     <div className={`absolute top-2 right-2 ${isActive ? 'text-primary-500' : 'text-zinc-600'}`}>
@@ -263,11 +284,11 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                         <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-3 px-2 flex items-center gap-2"><Sparkles size={14} /> {t('themeCollections')}</h3>
                         <div className="space-y-4">
                             {THEME_PAIRS.map((pair) => (
-                                <div key={pair.name} className="bg-white dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
+                                <div key={pair.nameKey} className="bg-white dark:bg-zinc-900/50 rounded-2xl border border-zinc-200 dark:border-zinc-800 p-3 shadow-sm">
                                     <div className="flex justify-between items-center mb-3 px-1">
                                         <div>
-                                            <div className="font-bold text-sm text-zinc-800 dark:text-zinc-200">{pair.name}</div>
-                                            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{pair.description}</div>
+                                            <div className="font-bold text-sm text-zinc-800 dark:text-zinc-200">{t(pair.nameKey)}</div>
+                                            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">{t(pair.descKey)}</div>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -279,11 +300,7 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                         </div>
                     </section>
 
-                    <button
-                        onClick={onReset}
-                        className="w-full py-4 text-red-500 font-bold text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-red-100 dark:border-red-900/30 hover:bg-red-50 flex items-center justify-center gap-2 transition-colors">
-                        <LogOut size={16} /> {t('resetDatabase')}
-                    </button>
+
 
                     {/* Storage Management (Moved to Bottom) */}
                     <section>
@@ -311,6 +328,8 @@ const ParametersView: React.FC<ParametersViewProps> = ({
 
                     </section>
 
+
+
                     {/* Language Selector (Moved to Bottom) */}
                     <section>
                         <h3 className="text-sm font-bold text-zinc-400 uppercase tracking-wider mb-3 px-2 flex items-center gap-2">
@@ -328,6 +347,14 @@ const ParametersView: React.FC<ParametersViewProps> = ({
                             ))}
                         </div>
                     </section>
+                </div>
+
+                <div className="px-4 pb-6">
+                    <button
+                        onClick={onReset}
+                        className="w-full py-4 text-red-500 font-bold text-sm bg-white dark:bg-zinc-900 rounded-2xl border border-red-100 dark:border-red-900/30 hover:bg-red-50 dark:hover:bg-red-900/10 flex items-center justify-center gap-2 transition-colors">
+                        <LogOut size={16} /> {t('resetDatabase')}
+                    </button>
                 </div>
                 <div className="text-center text-xs text-zinc-400 py-4">FocusSplit v1.3.1 • Productivity Engine v2</div>
             </div >
